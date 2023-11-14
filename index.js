@@ -12,7 +12,7 @@ app.use(express.json());
 const verifyJWt = (req, res, next) => {
     const authorization = req.headers.authorization;
     if (!authorization) {
-        return res.status(401).send({ error: true, message: 'unauthorized access' });
+        return res.status(401).send({ error: true, message: 'unauthorizedd access' });
     }
 
     // bearer token
@@ -59,8 +59,21 @@ async function run() {
         })
 
 
+        //use verifyJWT before using verifyAdmin
+        const verifyAdmin = async (req, res, next) => {
+            const email = req.decoded.email;
+            const query = { email: email }
+            const user = await usersCollection.findOne(query);
+            if (user?.role !== 'admin') {
+                return res.status(403).send({ error: true, message: 'forbidden message' });
+            }
+            next();
+        }
+
+
+
         //user related apis
-        app.get(`/users`, async (req, res) => {
+        app.get(`/users`, verifyJWt, verifyAdmin, async (req, res) => {
             const result = await usersCollection.find().toArray();
             res.send(result);
         })
@@ -73,7 +86,22 @@ async function run() {
             if (existingUser) {
                 return res.send({ message: 'User already exists' })
             }
+
             const result = await usersCollection.insertOne(user);
+            res.send(result);
+        })
+
+        //security layer: verifyJWT, check email and check if admin
+        app.get('/users/admin/:email', verifyJWt, async (req, res) => {
+            const email = req.params.email;
+
+            if (req.decoded.email !== email) {
+                res.send({ admin: false })
+            }
+
+            const query = { email: email };
+            const user = await usersCollection.findOne(query);
+            const result = { admin: user?.role === 'admin' };
             res.send(result);
         })
 
