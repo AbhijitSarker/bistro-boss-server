@@ -149,7 +149,6 @@ async function run() {
         //cart collection
         app.get('/carts', verifyJWt, async (req, res) => {
             const email = req.query.email;
-            // console.log(email);
             if (!email) {
                 res.send([]);
             }
@@ -183,7 +182,6 @@ async function run() {
         app.post("/create-payment-intent", verifyJWt, async (req, res) => {
             const { price } = req.body;
             const amount = parseInt(price * 100);
-            console.log(amount, price);
             const paymentIntent = await stripe.paymentIntents.create({
                 amount: amount,
                 currency: "usd",
@@ -204,6 +202,16 @@ async function run() {
 
             res.send({ insertResult, deleteResult });
         });
+
+        app.get('/admin-stats', verifyJWt, verifyAdmin, async (req, res) => {
+            const users = await usersCollection.estimatedDocumentCount();
+            const products = await menuCollection.estimatedDocumentCount();
+            const orders = await paymentCollection.estimatedDocumentCount();
+
+            const payments = await paymentCollection.find().toArray();
+            const revenue = payments.reduce((sum, payment) => sum + payment.price, 0)
+            res.send({ users, products, orders, revenue });
+        })
 
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
